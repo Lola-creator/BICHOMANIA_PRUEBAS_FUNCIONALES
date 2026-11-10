@@ -35,7 +35,6 @@ function App() {
           <Route path="/pedidos" element={<Pedido/>} /> 
           <Route path="/resenas/:id" element={<Resena/>} />
           <Route path="/deudas" element={<Deuda/>} />
-          <Route path="/productos/agregar" element={<AgregarProducto />} />
           <Route path="/productos/eliminar/:id" element={<EliminarProducto />} />
           <Route path="/producto/:id" element={<ProductoDetalles />} />
           <Route path="/carrito" element={ <RequireAuth><Carrito/></RequireAuth>} /> 

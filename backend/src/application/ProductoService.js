@@ -4,7 +4,6 @@ const { ErrorNoEncontrado, ErrorValidacion } = require("../domain/errores");
 const MAX_NOMBRE = 100;
 const PRECIO_MAX = 99999.99;
 
-// nuevo = true: alta (exige relaciones e imagen). nuevo = false: edición (solo nombre y precio).
 function validar(datos, { nuevo }) {
   const nombre = String(datos.nombre ?? "");
   const precioTxt = String(datos.precio ?? "");
@@ -37,7 +36,7 @@ class ProductoService {
     try {
       validar(datos, { nuevo: true });
     } catch (e) {
-      this.almacenImagenes.eliminar(datos.imagen); // no dejar el archivo huérfano
+      this.almacenImagenes.eliminar(datos.imagen);
       throw e;
     }
     const producto = new Producto({ ...datos, nombre: datos.nombre.trim() });
@@ -69,7 +68,7 @@ class ProductoService {
     await this.repositorio.actualizar(actualizado);
 
     if (rutaImagenNueva) this.almacenImagenes.eliminar(imagenAnterior);
-    return this.obtenerDetalle(idProducto); // EditarProducto.jsx necesita el producto actualizado
+    return this.obtenerDetalle(idProducto);
   }
 
   async eliminar(idProducto) {

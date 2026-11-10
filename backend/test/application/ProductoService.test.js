@@ -22,6 +22,7 @@ describe("ProductoService", () => {
         idCompetencia: 3,
         idMarca: 4,
         idEquipo: 9,
+        imagen: "/uploads/nueva.png",
     });
 
     beforeEach(() => {
@@ -48,7 +49,7 @@ describe("ProductoService", () => {
 
             expect(repositorio.crear).toHaveBeenCalledTimes(1);
             expect(respuesta).toEqual({
-                message: "Producto agregado correctamente",
+                message: "Producto registrado correctamente",
                 id_producto: 15,
             });
         });
@@ -80,6 +81,7 @@ describe("ProductoService", () => {
                 .rejects.toThrow(ErrorValidacion);
 
             expect(repositorio.crear).not.toHaveBeenCalled();
+            expect(almacenImagenes.eliminar).toHaveBeenCalledWith("/uploads/nueva.png");
         });
 
         test("propaga el error de persistencia del repositorio", async () => {
@@ -94,27 +96,30 @@ describe("ProductoService", () => {
         test("lanza ErrorNoEncontrado si el producto no existe", async () => {
             repositorio.buscarPorId.mockResolvedValue(null);
 
-            await expect(servicio.editar(99, datosValidos()))
+            await expect(servicio.editar(99, datosValidos(), "/uploads/nueva.png"))
                 .rejects.toThrow(ErrorNoEncontrado);
 
             expect(repositorio.buscarPorId).toHaveBeenCalledWith(99);
             expect(repositorio.actualizar).not.toHaveBeenCalled();
-            expect(almacenImagenes.eliminar).not.toHaveBeenCalled();
+            expect(almacenImagenes.eliminar).toHaveBeenCalledWith("/uploads/nueva.png");
         });
 
         test("actualiza el producto conservando su id", async () => {
+            const detalle = { id_producto: 7, nombre_producto: "Camiseta Alianza" };
             repositorio.buscarPorId.mockResolvedValue(productoExistente);
+            repositorio.buscarDetalle.mockResolvedValue(detalle);
 
             const respuesta = await servicio.editar(7, datosValidos());
 
             const actualizado = repositorio.actualizar.mock.calls[0][0];
             expect(actualizado).toBeInstanceOf(Producto);
             expect(actualizado).toMatchObject({ id: 7, nombre: "Camiseta Alianza", precio: 100 });
-            expect(respuesta).toEqual({ message: "Producto actualizado correctamente" });
+            expect(respuesta).toBe(detalle);
         });
 
         test("con imagen nueva guarda la nueva y elimina la anterior", async () => {
             repositorio.buscarPorId.mockResolvedValue(productoExistente);
+            repositorio.buscarDetalle.mockResolvedValue({ id_producto: 7 });
 
             await servicio.editar(7, datosValidos(), "/uploads/nueva.png");
 
@@ -125,6 +130,7 @@ describe("ProductoService", () => {
 
         test("sin imagen nueva conserva la anterior y no elimina ningun archivo", async () => {
             repositorio.buscarPorId.mockResolvedValue(productoExistente);
+            repositorio.buscarDetalle.mockResolvedValue({ id_producto: 7 });
 
             await servicio.editar(7, datosValidos());
 
@@ -132,14 +138,15 @@ describe("ProductoService", () => {
             expect(almacenImagenes.eliminar).not.toHaveBeenCalled();
         });
 
-        test("rechaza datos invalidos sin actualizar ni borrar la imagen", async () => {
+        test("rechaza datos invalidos sin actualizar y borra solo la imagen nueva", async () => {
             repositorio.buscarPorId.mockResolvedValue(productoExistente);
 
             await expect(servicio.editar(7, { ...datosValidos(), precio: -1 }, "/uploads/nueva.png"))
                 .rejects.toThrow(ErrorValidacion);
 
             expect(repositorio.actualizar).not.toHaveBeenCalled();
-            expect(almacenImagenes.eliminar).not.toHaveBeenCalled();
+            expect(almacenImagenes.eliminar).toHaveBeenCalledTimes(1);
+            expect(almacenImagenes.eliminar).toHaveBeenCalledWith("/uploads/nueva.png");
         });
 
         test("no borra la imagen anterior si falla la actualizacion", async () => {

@@ -13,6 +13,12 @@
     "pdfkit": "^0.17.2"
   },
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "jest",
+    "start:local": "cross-env ENV_FILE=.env.local node index.js"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0",
+    "jest": "^30.5.2"
   }
 }

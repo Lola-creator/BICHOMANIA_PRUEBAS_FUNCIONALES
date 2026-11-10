@@ -1,3 +1,4 @@
+require("dotenv").config({ path: process.env.ENV_FILE || ".env" });
 const express = require("express");
 const PDFDocument = require("pdfkit");
 const cors = require("cors");
@@ -16,14 +17,11 @@ const ProductoService = require("./src/application/ProductoService");
 const ProductoRepository = require("./src/infrastructure/persistence/ProductoRepository");
 const AlmacenImagenes = require("./src/infrastructure/storage/AlmacenImagenes");
 const { ErrorValidacion, ErrorNoEncontrado } = require("./src/domain/errores");
-require("dotenv").config();
-
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
-app.use("/uploads", express.static("uploads"));
 app.use(express.urlencoded({ extended: true }));
 
 const uploadDir = path.join(__dirname, "uploads");
@@ -31,7 +29,7 @@ const uploadDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
-//const { ErrorValidacion } = require("./domain/errores");
+
 app.use("/uploads", express.static(uploadDir));
 
 const storage = multer.diskStorage({
@@ -46,7 +44,7 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith("image/")) {
       req.archivoInvalido = true;
-      return cb(null, false); 
+      return cb(null, false);
     }
     cb(null, true);
   },
@@ -57,11 +55,13 @@ const db = mysql.createPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  port: 3306,
+  port: Number(process.env.DB_PORT) || 3306,
   waitForConnections: true,
   connectionLimit: 2,
+  maxIdle: 1,
+  idleTimeout: 10000,
   queueLimit: 0,
-  ssl: { rejectUnauthorized: false },
+  ssl: process.env.DB_SSL !== "false" ? { rejectUnauthorized: false } : undefined,
 });
 module.exports = db;
 const carritoService = new CarritoService(new CarritoRepository(db.promise()));
@@ -96,9 +96,6 @@ app.get("/", (req, res) => {
   res.send("Servidor funcionando.");
 });
 
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en el puerto ${PORT}`);
-});
 app.get("/test-db", (req, res) => {
   db.query("SELECT 1 + 1 AS resultado", (err, rows) => {
     if (err) return res.status(500).json({ error: err });
@@ -115,13 +112,11 @@ app.post("/registrar", async (req, res) => {
     contrasena,
   } = req.body;
 
-  console.log("Datos recibidos en backend:", req.body); // 👀 debug
-
   try {
     const hash = await bcrypt.hash(contrasena, 10);
 
     const sql = `
-      INSERT INTO clientes 
+      INSERT INTO clientes
       (nombre, apellido_paterno, telefono, correo_electronico, dni, contrasena)
       VALUES (?, ?, ?, ?, ?, ?)
     `;
@@ -230,7 +225,6 @@ app.post("/login/employee", (req, res) => {
   });
 });
 
-  //asi lo pongo???
 app.post(
   "/productos/agregar",
   upload.single("imagen"),
@@ -302,30 +296,25 @@ app.get("/competencias", (req, res) => {
   });
 });
 
-app.get("/listas", (req, res) => {
-  const queries = {
-    categorias: "SELECT * FROM categoria",
-    competencias: "SELECT * FROM competencias",
-    equipos: "SELECT * FROM equipos",
-    marcas: "SELECT * FROM marcas",
-  };
-
-  const results = {};
-
-  let completed = 0;
-  const total = Object.keys(queries).length;
-
-  for (const key in queries) {
-    db.query(queries[key], (err, rows) => {
-      if (err) return res.status(500).send("Error al obtener listas");
-
-      results[key] = rows;
-      completed++;
-
-      if (completed === total) {
-        res.json(results);
-      }
+app.get("/listas", async (req, res) => {
+  try {
+    const consultas = {
+      categorias: "SELECT * FROM categoria",
+      competencias: "SELECT * FROM competencias",
+      equipos: "SELECT * FROM equipos",
+      marcas: "SELECT * FROM marcas",
+    };
+    const claves = Object.keys(consultas);
+    const respuestas = await Promise.all(
+      claves.map((clave) => db.promise().query(consultas[clave])),
+    );
+    const resultado = {};
+    claves.forEach((clave, indice) => {
+      resultado[clave] = respuestas[indice][0];
     });
+    res.json(resultado);
+  } catch (error) {
+    res.status(500).send("Error al obtener listas");
   }
 });
 
@@ -349,7 +338,7 @@ app.put(
 );
 
 app.get("/clientes", (req, res) => {
-  const query = `SELECT id_cliente, nombre, apellido_paterno, apellido_materno, telefono, correo_electronico, dni, saldo 
+  const query = `SELECT id_cliente, nombre, apellido_paterno, apellido_materno, telefono, correo_electronico, dni, saldo
                    FROM clientes`;
 
   db.query(query, (err, results) => {
@@ -691,18 +680,18 @@ app.get("/deudas/:id_cliente", async (req, res) => {
   try {
     const [rows] = await dbp.execute(
       `
-      SELECT 
+      SELECT
         pe.id_carrito,
         pe.id_pedido,
         pe.fecha_pedido,
         pe.id_estado,
         COALESCE(SUM(pc.cantidad * p.precio), 0) AS total,
-        COALESCE((SELECT SUM(monto) 
-                  FROM pagos 
+        COALESCE((SELECT SUM(monto)
+                  FROM pagos
                   WHERE id_pedido = pe.id_pedido), 0) AS pagado,
         COALESCE(SUM(pc.cantidad * p.precio), 0) -
-        COALESCE((SELECT SUM(monto) 
-                  FROM pagos 
+        COALESCE((SELECT SUM(monto)
+                  FROM pagos
                   WHERE id_pedido = pe.id_pedido), 0) AS deuda
       FROM pedidos pe
       JOIN carritos c ON pe.id_carrito = c.id_carrito
@@ -733,15 +722,15 @@ app.post("/pagos/registrar", async (req, res) => {
   try {
     const [rows] = await dbp.execute(
       `
-      SELECT 
+      SELECT
         (SELECT SUM(pc.cantidad * p.precio)
          FROM pedidos pe
          JOIN carritos c ON pe.id_carrito = c.id_carrito
          JOIN items_carrito pc ON c.id_carrito = pc.id_carrito
          JOIN productos p ON pc.id_producto = p.id_producto
-         WHERE pe.id_pedido = ?) 
+         WHERE pe.id_pedido = ?)
         -
-        (SELECT IFNULL(SUM(monto),0) 
+        (SELECT IFNULL(SUM(monto),0)
          FROM pagos WHERE id_pedido = ?) AS deuda
     `,
       [id_pedido, id_pedido],
@@ -762,15 +751,15 @@ app.post("/pagos/registrar", async (req, res) => {
 
     const [rows2] = await dbp.execute(
       `
-      SELECT 
+      SELECT
         (SELECT SUM(pc.cantidad * p.precio)
          FROM pedidos pe
          JOIN carritos c ON pe.id_carrito = c.id_carrito
          JOIN items_carrito pc ON c.id_carrito = pc.id_carrito
          JOIN productos p ON pc.id_producto = p.id_producto
-         WHERE pe.id_pedido = ?) 
+         WHERE pe.id_pedido = ?)
         -
-        (SELECT IFNULL(SUM(monto),0) 
+        (SELECT IFNULL(SUM(monto),0)
          FROM pagos WHERE id_pedido = ?) AS deuda
     `,
       [id_pedido, id_pedido],
@@ -841,7 +830,7 @@ app.get("/pagos/deuda/:id_pedido", async (req, res) => {
   try {
     const [rows] = await dbp.execute(
       `
-      SELECT 
+      SELECT
         IFNULL(
           (SELECT SUM(pc.cantidad * p.precio)
            FROM pedidos pe
@@ -849,7 +838,7 @@ app.get("/pagos/deuda/:id_pedido", async (req, res) => {
            JOIN items_carrito pc ON c.id_carrito = pc.id_carrito
            JOIN productos p ON pc.id_producto = p.id_producto
            WHERE pe.id_pedido = ?
-          ), 
+          ),
         0)
         -
         IFNULL(
@@ -895,7 +884,7 @@ app.get("/compras/:id_cliente", async (req, res) => {
   try {
     const [rows] = await dbp.execute(
       `
-      SELECT 
+      SELECT
         pe.id_pedido,
         pe.id_carrito,
         pe.fecha_pedido,
@@ -1057,7 +1046,7 @@ app.get("/boleta/:id_pedido", async (req, res) => {
   try {
     const [rows] = await dbp.execute(
       `
-      SELECT 
+      SELECT
           pe.id_pedido,
           pe.fecha_pedido,
           pr.nombre AS producto_nombre,
@@ -1255,4 +1244,14 @@ app.delete("/pedido/eliminar/:id_pedido", async (req, res) => {
     console.error("[/pedido/eliminar] ERROR:", err);
     return res.status(500).json({ error: "Error eliminando pedido" });
   }
+});
+
+const servidor = app.listen(PORT, () => {
+  console.log(`Servidor corriendo en el puerto ${PORT}`);
+});
+
+process.on("SIGINT", () => {
+  servidor.close(() => {
+    db.end(() => process.exit(0));
+  });
 });

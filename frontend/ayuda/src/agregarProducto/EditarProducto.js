@@ -4,7 +4,6 @@ const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3001";
 const MAX_NOMBRE = 100;
 const PRECIO_MAX = 99999.99;
 
-// Soporta rutas locales (/uploads/x.png) y URLs completas antiguas (Supabase)
 const urlImagen = (img) => {
   if (!img) return "";
   return /^https?:\/\//i.test(img) ? img : `${API_URL}${img}`;
