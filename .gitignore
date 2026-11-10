@@ -5,3 +5,4 @@ target/
 backend/uploads/*
 !backend/uploads/.gitkeep
 reporte-xunit.xml
+.env.clever
