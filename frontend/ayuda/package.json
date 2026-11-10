@@ -22,7 +22,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "test:selenium": "node --test --test-timeout=600000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=test-selenium/reporte-xunit.xml test-selenium/prueba.test.js"
   },
   "eslintConfig": {
     "extends": [
