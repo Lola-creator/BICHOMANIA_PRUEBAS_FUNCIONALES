@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Productos from "./pages/Productos";
 import Registro from "./registro/Registro";
+import RequireEmpleado from "./RequireEmpleado";
 import Home from "./home/Home";
 import Login from "./login/Login";
 import Header from "./header/Header";
@@ -27,6 +28,7 @@ function App() {
           <Route path="/login-employee" element={<Login tipo="employee" />} />
           <Route path="/registro" element={<Registro />} />
           <Route path="/productos" element={<Productos />} />
+          <Route path="/productos/agregar" element={<RequireEmpleado><AgregarProducto /></RequireEmpleado>}/>
           <Route path="/profile" element={ <RequireAuth> <Profile /> </RequireAuth>} /> 
           <Route path="/encuestas" element={<Encuesta/>} /> 
           <Route path="/responder-encuestas" element={<ResponderEncuestas />} />

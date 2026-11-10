@@ -99,6 +99,7 @@ export default function Login({ tipo }) {
             </span>
           </div>
             <button type="submit">Ingresar</button>
+            
           </form>
           <div className="regi">
             {tipo === "user" && (
