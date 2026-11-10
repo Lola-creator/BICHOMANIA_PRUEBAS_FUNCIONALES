@@ -17,10 +17,10 @@ const ProductoRepository = require("./src/infrastructure/persistence/ProductoRep
 const AlmacenImagenes = require("./src/infrastructure/storage/AlmacenImagenes");
 const { ErrorValidacion, ErrorNoEncontrado } = require("./src/domain/errores");
 require("dotenv").config();
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-//bcrypt.hash("mathias123", 10).then(h => console.log(h));
 app.use(cors());
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
@@ -31,7 +31,7 @@ const uploadDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
-
+//const { ErrorValidacion } = require("./domain/errores");
 app.use("/uploads", express.static(uploadDir));
 
 const storage = multer.diskStorage({
@@ -39,7 +39,18 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) =>
     cb(null, Date.now() + path.extname(file.originalname)),
 });
-const upload = multer({ storage });
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) {
+      req.archivoInvalido = true;
+      return cb(null, false); 
+    }
+    cb(null, true);
+  },
+});
 
 const db = mysql.createPool({
   host: process.env.DB_HOST,
@@ -219,10 +230,12 @@ app.post("/login/employee", (req, res) => {
   });
 });
 
+  //asi lo pongo???
 app.post(
   "/productos/agregar",
   upload.single("imagen"),
   responderCasoDeUso((req) => {
+    if (req.archivoInvalido) throw new ErrorValidacion("El archivo debe ser una imagen");
     const {
       nombre,
       caracteristica,
@@ -1161,6 +1174,7 @@ app.put(
   "/productos/editar/:id",
   upload.single("imagen"),
   responderCasoDeUso((req) => {
+    if (req.archivoInvalido) throw new ErrorValidacion("El archivo debe ser una imagen");
     const {
       nombre,
       caracteristica,

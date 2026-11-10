@@ -123,10 +123,11 @@ class ProductoRepository extends RepositorioProducto {
     }
   }
 
-  _selectDetalle() {
+    _selectDetalle() {
     return `
       SELECT DISTINCT
         p.id_producto, p.nombre AS nombre_producto, p.precio, p.caracteristica, p.imagen,
+        p.id_categoria, p.id_competencia, mp.id_marca, ep.id_equipo,
         c.nombre AS categoria, cmp.nombre AS competencia, m.nombre AS marca, e.nombre AS equipo
       FROM productos p
       LEFT JOIN categoria c ON p.id_categoria = c.id_categoria
